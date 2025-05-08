@@ -36,6 +36,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   double heighlightThickness = 5;
   bool isHighlightMode = false;
   bool isEditing = false;
+  bool _isEraser = false;
   Color bgColor = const Color(0xff1A1F38);
   Color editingColor = Colors.lightBlueAccent;
 
@@ -79,7 +80,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    const visualDensity = VisualDensity.compact;
     return Scaffold(
       bottomNavigationBar: Container(
         height: MediaQuery.of(context).padding.bottom + 70,
@@ -90,28 +90,33 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Column(
-                children: [
-                  IconButton(
-                    visualDensity: visualDensity,
-                    icon: Icon(
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isHighlightMode = !isHighlightMode;
+                    isEditing = !isEditing;
+                    _isDrawingLine = !_isDrawingLine;
+                  });
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
                       Icons.border_color_rounded,
                       size: 22,
                       color: isHighlightMode ? editingColor : Colors.white,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        isHighlightMode = !isHighlightMode;
-                        isEditing = true;
-                        _isDrawingLine!=_isDrawingLine;
-                      });
-                    },
-                  ),
-                  const Text(
-                    'Highlight',
-                    style: TextStyle(fontSize: 8, color: Colors.white),
-                  ),
-                ],
+                    SizedBox(
+                      height: 8,
+                    ),
+                    Text(
+                      'Highlight',
+                      style: TextStyle(
+                          fontSize: 8,
+                          color: isHighlightMode ? editingColor : Colors.white),
+                    ),
+                  ],
+                ),
               ),
               AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
@@ -141,23 +146,24 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      ColorPickerBottomSheet.show(
-                                          context: context,
-                                          onColorSelected: (color, opacity) {
-                                            setState(() {
-                                              heighlightColor = color;
-                                              heighlightOpacity = opacity;
-                                            });
-                                          },
-                                          initialColor: heighlightColor,
-                                          initialOpacity: heighlightOpacity);
-                                    },
-                                    child: Container(
+                              GestureDetector(
+                                onTap: () {
+                                  ColorPickerBottomSheet.show(
+                                      context: context,
+                                      onColorSelected: (color, opacity) {
+                                        setState(() {
+                                          heighlightColor = color;
+                                          heighlightOpacity = opacity;
+                                          _isEraser = false;
+                                        });
+                                      },
+                                      initialColor: heighlightColor,
+                                      initialOpacity: heighlightOpacity);
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
                                       height: 22,
                                       width: 22,
                                       decoration: BoxDecoration(
@@ -169,14 +175,46 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  const Text(
-                                    'Color',
-                                    style: TextStyle(
-                                        fontSize: 8, color: Colors.white),
-                                  ),
-                                ],
+                                    const SizedBox(height: 5),
+                                    const Text(
+                                      'Color',
+                                      style: TextStyle(
+                                          fontSize: 8, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 16,
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  ColorPickerBottomSheet.showThicknessSheet(
+                                      context: context,
+                                      lineColor: heighlightColor,
+                                      onThicknessSelected: (double thickness) {
+                                        setState(() {
+                                          heighlightThickness = thickness;
+                                          _isEraser = false;
+                                        });
+                                      });
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.line_weight,
+                                      size: 22,
+                                      color: heighlightColor,
+                                    ),
+                                    const SizedBox(height: 5),
+                                    const Text(
+                                      'Line Thickness',
+                                      style: TextStyle(
+                                          fontSize: 8, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(
                                 width: 16,
@@ -186,24 +224,26 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                 children: [
                                   GestureDetector(
                                     onTap: () {
-                                       ColorPickerBottomSheet.showThicknessSheet(context: context, lineColor: heighlightColor, onThicknessSelected: (double thickness) {
-                                        setState(() {
-                                          heighlightThickness = thickness;
-                                        });
-
-                                       });
+                                      setState(() {
+                                        _isEraser = !_isEraser;
+                                      });
                                     },
                                     child: Icon(
-                                      Icons.line_weight,
+                                      Icons.cleaning_services_sharp,
                                       size: 22,
-                                      color: heighlightColor,
+                                      color: _isEraser
+                                          ? editingColor
+                                          : Colors.white,
                                     ),
                                   ),
                                   const SizedBox(height: 5),
-                                  const Text(
-                                    'Line Thickness',
+                                  Text(
+                                    'Eraser',
                                     style: TextStyle(
-                                        fontSize: 8, color: Colors.white),
+                                        fontSize: 8,
+                                        color: _isEraser
+                                            ? editingColor
+                                            : Colors.white),
                                   ),
                                 ],
                               )
@@ -307,113 +347,157 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           }
                         },
 
-                        viewerOverlayBuilder: (context, size, handleLinkTap) =>
-                            [
-                          Visibility(
-                            visible: _isDrawingLine,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.translucent,
-                              onLongPressStart: (details) {
-                                // Start drawing a line on long press
-                                final posInDoc = controller
-                                    .globalToDocument(details.globalPosition);
-                                if (posInDoc == null) return;
+                        viewerOverlayBuilder: (context, size, handleLinkTap) {
+                          print(
+                              "Line drawing $_isCurrentlyDrawing  $_isDrawingLine");
+                          return [
+                            Visibility(
+                              visible: _isDrawingLine,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onLongPressStart: (details) {
+                                  // Start drawing a line on long press
 
-                                final pageIndex = controller.layout.pageLayouts
-                                    .indexWhere((pageRect) =>
-                                        pageRect.contains(posInDoc));
-                                if (pageIndex < 0) return;
+                                  final posInDoc = controller
+                                      .globalToDocument(details.globalPosition);
+                                  if (posInDoc == null) return;
 
-                                final pageOffset = posInDoc -
-                                    controller
-                                        .layout.pageLayouts[pageIndex].topLeft;
+                                  final pageIndex = controller
+                                      .layout.pageLayouts
+                                      .indexWhere((pageRect) =>
+                                          pageRect.contains(posInDoc));
+                                  if (pageIndex < 0) return;
 
-                                setState(() {
-                                  _lineStart = pageOffset;
-                                  _lineEnd =
-                                      pageOffset; // Initialize end with start
-                                  _drawingPageNumber = pageIndex + 1;
-                                  _isCurrentlyDrawing =
-                                      true; // Flag to track active drawing
-                                });
-                              },
-                              onLongPressMoveUpdate: (details) {
-                                // Only update if we're in drawing mode
-                                if (!_isCurrentlyDrawing) return;
-
-                                // Update the end point of the line
-                                final posInDoc = controller
-                                    .globalToDocument(details.globalPosition);
-                                if (posInDoc == null) return;
-
-                                final pageIndex = controller.layout.pageLayouts
-                                    .indexWhere((pageRect) =>
-                                        pageRect.contains(posInDoc));
-
-                                // Only update if we're still on the same page
-                                if (pageIndex + 1 == _drawingPageNumber) {
                                   final pageOffset = posInDoc -
                                       controller.layout.pageLayouts[pageIndex]
                                           .topLeft;
 
                                   setState(() {
-                                    _lineEnd = pageOffset;
+                                    _lineStart = pageOffset;
+                                    _lineEnd =
+                                        pageOffset; // Initialize end with start
+                                    _drawingPageNumber = pageIndex + 1;
+                                    _isCurrentlyDrawing =
+                                        true; // Flag to track active drawing
                                   });
-                                }
-                              },
-                              onLongPressEnd: (details) {
-                                // Finalize the line
-                                if (_isCurrentlyDrawing &&
-                                    _lineStart != null &&
-                                    _lineEnd != null &&
-                                    _drawingPageNumber != null) {
-                                  // Add the line to the collection
-                                  _lines
-                                      .putIfAbsent(
-                                          _drawingPageNumber!, () => [])
-                                      .add(Line(
-                                        start: _lineStart!,
-                                        end: _lineEnd!,
-                                        color: heighlightColor,
-                                        width: heighlightThickness,
-                                      ));
+                                },
+                                onLongPressMoveUpdate: (details) {
+                                  // Only update if we're in drawing mode
+                                  if (!_isCurrentlyDrawing) return;
 
-                                  // Reset temporary drawing state
-                                  setState(() {
-                                    _lineStart = null;
-                                    _lineEnd = null;
-                                    _isCurrentlyDrawing = false;
-                                  });
-                                }
-                              },
-                              onTapDown: (details) {
-                                // Handle regular taps (like for link handling)
-                                final posInDoc = controller
-                                    .globalToDocument(details.globalPosition);
-                                if (posInDoc == null) return;
+                                  // Update the end point of the line
+                                  final posInDoc = controller
+                                      .globalToDocument(details.globalPosition);
+                                  if (posInDoc == null) return;
 
-                                final pageIndex = controller.layout.pageLayouts
-                                    .indexWhere((pageRect) =>
-                                        pageRect.contains(posInDoc));
-                                if (pageIndex < 0) return;
+                                  final pageIndex = controller
+                                      .layout.pageLayouts
+                                      .indexWhere((pageRect) =>
+                                          pageRect.contains(posInDoc));
 
-                                _offsetInPage = posInDoc -
-                                    controller
-                                        .layout.pageLayouts[pageIndex].topLeft;
-                                _pageNumber = pageIndex + 1;
+                                  // Only update if we're still on the same page
+                                  if (pageIndex + 1 == _drawingPageNumber) {
+                                    final pageOffset = posInDoc -
+                                        controller.layout.pageLayouts[pageIndex]
+                                            .topLeft;
 
-                                // Call the link handling function if it exists
-                                if (handleLinkTap != null) {}
+                                    setState(() {
+                                      _lineEnd = pageOffset;
+                                    });
+                                  }
+                                },
+                                onLongPressEnd: (details) {
+                                  // Finalize the line
+                                  if (_isCurrentlyDrawing &&
+                                      _lineStart != null &&
+                                      _lineEnd != null &&
+                                      _drawingPageNumber != null) {
+                                    // Add the line to the collection
+                                    _lines
+                                        .putIfAbsent(
+                                            _drawingPageNumber!, () => [])
+                                        .add(Line(
+                                          start: _lineStart!,
+                                          end: _lineEnd!,
+                                          color: heighlightColor,
+                                          width: heighlightThickness,
+                                        ));
 
-                                setState(() {});
-                              },
-                              child: SizedBox(
-                                height: size.height,
-                                width: size.width,
+                                    // Reset temporary drawing state
+                                    setState(() {
+                                      _lineStart = null;
+                                      _lineEnd = null;
+                                      _isCurrentlyDrawing = false;
+                                    });
+                                  }
+                                },
+                                onTapDown: (details) {
+                                  if (_isEraser) {
+                                    // Handle erasing mode
+                                    final posInDoc =
+                                        controller.globalToDocument(
+                                            details.globalPosition);
+                                    if (posInDoc == null) return;
+
+                                    final pageIndex = controller
+                                        .layout.pageLayouts
+                                        .indexWhere(
+                                      (pageRect) => pageRect.contains(posInDoc),
+                                    );
+                                    if (pageIndex < 0) return;
+
+                                    final pageOffset = posInDoc -
+                                        controller.layout.pageLayouts[pageIndex]
+                                            .topLeft;
+
+                                    // Check if the tap is near any line on the page
+                                    final pageLines = _lines[pageIndex + 1];
+                                    if (pageLines != null) {
+                                      final lineToRemove = pageLines.firstWhere(
+                                        (line) =>
+                                            _isPointNearLine(pageOffset, line),
+                                        orElse: () => Line.empty(),
+                                      );
+
+                                      if (!lineToRemove.isEmpty()) {
+                                        setState(() {
+                                          pageLines.remove(lineToRemove);
+                                          if (pageLines.isEmpty) {
+                                            _lines.remove(pageIndex + 1);
+                                          }
+                                        });
+                                      }
+                                    }
+                                  }
+                                  // Handle regular taps (like for link handling)
+                                  final posInDoc = controller
+                                      .globalToDocument(details.globalPosition);
+                                  if (posInDoc == null) return;
+
+                                  final pageIndex = controller
+                                      .layout.pageLayouts
+                                      .indexWhere((pageRect) =>
+                                          pageRect.contains(posInDoc));
+                                  if (pageIndex < 0) return;
+
+                                  _offsetInPage = posInDoc -
+                                      controller.layout.pageLayouts[pageIndex]
+                                          .topLeft;
+                                  _pageNumber = pageIndex + 1;
+
+                                  // Call the link handling function if it exists
+                                  if (handleLinkTap != null) {}
+
+                                  setState(() {});
+                                },
+                                child: SizedBox(
+                                  height: size.height,
+                                  width: size.width,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ];
+                        },
 
                         loadingBannerBuilder:
                             (context, bytesDownloaded, totalBytes) => Center(
@@ -469,6 +553,34 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             }),
       ),
     );
+  }
+
+  bool _isPointNearLine(Offset point, Line line, {double tolerance = 10.0}) {
+    final lineVector = line.end - line.start;
+    final pointVector = point - line.start;
+
+    final lineLengthSquared =
+        lineVector.dx * lineVector.dx + lineVector.dy * lineVector.dy;
+
+    if (lineLengthSquared == 0.0) {
+      // Line is a point
+      return (point - line.start).distance <= tolerance;
+    }
+
+    final t =
+        (pointVector.dx * lineVector.dx + pointVector.dy * lineVector.dy) /
+            lineLengthSquared;
+
+    if (t < 0.0 || t > 1.0) {
+      // Point is outside the line segment
+      return false;
+    }
+
+    final projection = Offset(
+      line.start.dx + t * lineVector.dx,
+      line.start.dy + t * lineVector.dy,
+    );
+    return (point - projection).distance <= tolerance;
   }
 
   void _paintLines(Canvas canvas, Rect pageRect, PdfPage page) {
@@ -645,6 +757,19 @@ class Line {
       required this.end,
       required this.color,
       required this.width});
+
+  bool isEmpty() {
+    return start == Offset.zero && end == Offset.zero;
+  }
+
+  factory Line.empty() {
+    return Line(
+      start: Offset.zero,
+      end: Offset.zero,
+      color: Colors.transparent,
+      width: 0.0,
+    );
+  }
 }
 
 // Custom painter for drawing lines
