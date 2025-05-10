@@ -185,3 +185,217 @@ class _ToolBarState extends State<ToolBar> {
     );
   }
 }
+
+
+
+
+class HighlightControlsBar extends StatefulWidget {
+  final bool isEditing;
+  final bool isEraser;
+  final bool highLightEnabled;
+  final Color heighlightColor;
+  final double heighlightOpacity;
+  final double heighlightThickness;
+  final Color editingColor;
+  final Color bgColor;
+  final VoidCallback onHighlightTap;
+  final VoidCallback onDrawTap;
+  final VoidCallback onColorTap;
+  final VoidCallback onThicknessTap;
+  final VoidCallback onEraserTap;
+
+  const HighlightControlsBar({
+    super.key,
+    required this.isEditing,
+
+    required this.isEraser,
+    required this.heighlightColor,
+    required this.heighlightOpacity,
+    required this.heighlightThickness,
+    required this.editingColor,
+    required this.bgColor,
+    required this.onHighlightTap,
+    required this.onColorTap,
+    required this.onThicknessTap,
+    required this.onEraserTap, required this.onDrawTap,
+     required this.highLightEnabled,
+  });
+
+  @override
+  State<HighlightControlsBar> createState() => _HighlightControlsBarState();
+}
+
+class _HighlightControlsBarState extends State<HighlightControlsBar> {
+
+
+  bool isDrawMode=false;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).padding.bottom + 70,
+      decoration: BoxDecoration(
+        color: widget.bgColor,
+      ),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Opacity(
+              opacity: widget.highLightEnabled ? 1 : 0.5,
+              child: GestureDetector(
+                   onTap:(){
+widget.onHighlightTap();
+isDrawMode=false;
+
+              } ,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.border_color_rounded,
+                      size: 22,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Highlight',
+                      style: TextStyle(
+                        fontSize: 8,
+                        color:  Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 16,),
+            GestureDetector(
+              onTap:(){
+widget.onDrawTap();
+setState(() {
+  isDrawMode=!isDrawMode;
+});
+              } ,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.draw,
+                    size: 22,
+                    color: isDrawMode ? widget.editingColor : Colors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Draw',
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: isDrawMode ? widget.editingColor : Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SizeTransition(
+                  sizeFactor: animation,
+                  axis: Axis.horizontal,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: isDrawMode
+                  ? Row(
+                      key: const ValueKey('highlightControls'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          height: 24,
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          width: 1.3,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: widget.onColorTap,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                height: 22,
+                                width: 22,
+                                decoration: BoxDecoration(
+                                  color: widget.heighlightColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(.9),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              const Text(
+                                'Color',
+                                style: TextStyle(
+                                    fontSize: 8, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        GestureDetector(
+                          onTap: widget.onThicknessTap,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.line_weight,
+                                size: 22,
+                                color: widget.heighlightColor,
+                              ),
+                              const SizedBox(height: 5),
+                              const Text(
+                                'Line Thickness',
+                                style: TextStyle(
+                                    fontSize: 8, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: widget.onEraserTap,
+                              child: Icon(
+                                Icons.cleaning_services_sharp,
+                                size: 22,
+                                color: widget.isEraser ? widget.editingColor : Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Eraser',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: widget.isEraser ? widget.editingColor : Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(key: ValueKey('empty')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

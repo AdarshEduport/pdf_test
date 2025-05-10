@@ -1,12 +1,15 @@
-import 'dart:math';
-import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdfrx_poc/extensions.dart';
+import 'package:pdfrx_poc/line.dart';
+import 'package:pdfrx_poc/marker.dart';
 import 'package:pdfrx_poc/pages/color_picker.dart';
 import 'package:pdfrx_poc/pages/toolbar.dart';
+import 'package:pdfrx_poc/selection.dart';
 
 Color bgColor = const Color(0xff1A1F38);
 
@@ -24,8 +27,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
 
-  // Line drawing state variables
-  final _lines = <int, List<Line>>{};
+  
   bool _isDrawingLine = false;
   bool _isCurrentlyDrawing = false;
   Offset? _lineStart;
@@ -34,16 +36,24 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   Color heighlightColor = Colors.yellow;
   double heighlightOpacity = 1.0;
   double heighlightThickness = 5;
-  bool isHighlightMode = false;
   bool isEditing = false;
   bool _isEraser = false;
   Color bgColor = const Color(0xff1A1F38);
   Color editingColor = Colors.lightBlueAccent;
+  final test ={"1":[{"color":4294961979,"rects":[{"left":162.4559326171875,"top":224.15679931640625,"right":193.25234985351562,"bottom":239.20709228515625}]}]};
+  final testLine = 
+  {2: [[247.49084191694294, 117.86064761262105, 318.1760331439749, 116.25416599382493, 4294961979, 5.0], [250.7038051545353, 117.86064761262105, 317.21214417269715, 115.290277022547, 4294961979, 5.0], [252.31028677333148, 117.86064761262105, 313.3565882875863, 115.290277022547, 4294961979, 5.0], [249.7709653595836, 114.95566114460632, 311.1119538726655, 113.21959543197192, 4294961979, 5.0], [247.84200345665653, 114.95566114460632, 307.8327186376895, 117.46331161841158, 4294961979, 5.0]]};
 
   List<PdfTextRanges>? textSelections;
+  final _markers = <int, List<Marker>>{};
+  final _saveMarkers = <int, List<SavedMarker>>{};// markers to be saved
+  final _storedMarkers = <int, List<SavedMarker>>{};//already staored mrkers
+  // Line drawing state variables
+  final _lines = <int, List<Line>>{};
   int? _pageNumber;
   Offset? _offsetInPage;
-
+  bool canHightlight = false;
+ FocusNode _focusNode = FocusNode();
   void _update() {
     if (mounted) {
       setState(() {});
@@ -53,6 +63,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _storedMarkers.addAll(SavedMarkersJsonExtension.fromJson(jsonEncode(test)));
+    _lines.addAll(SavedMarkersJsonExtension.fromJsonLine(testLine));
+    
     documentRef.value = PdfDocumentRefUri(
       Uri.parse(
           'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
@@ -81,177 +94,64 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: Container(
-        height: MediaQuery.of(context).padding.bottom + 70,
-        decoration: BoxDecoration(
-          color: bgColor,
-        ),
-        child: SafeArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    isHighlightMode = !isHighlightMode;
-                    isEditing = !isEditing;
-                    _isDrawingLine = !_isDrawingLine;
-                  });
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.border_color_rounded,
-                      size: 22,
-                      color: isHighlightMode ? editingColor : Colors.white,
-                    ),
-                    SizedBox(
-                      height: 8,
-                    ),
-                    Text(
-                      'Highlight',
-                      style: TextStyle(
-                          fontSize: 8,
-                          color: isHighlightMode ? editingColor : Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return SizeTransition(
-                      sizeFactor: animation,
-                      axis: Axis.horizontal,
-                      child: FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: isHighlightMode
-                      ? Row(
-                          key: const ValueKey('highlightControls'),
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                              Container(
-                                height: 24,
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                width: 1.3,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(.3),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  ColorPickerBottomSheet.show(
-                                      context: context,
-                                      onColorSelected: (color, opacity) {
-                                        setState(() {
-                                          heighlightColor = color;
-                                          heighlightOpacity = opacity;
-                                          _isEraser = false;
-                                        });
-                                      },
-                                      initialColor: heighlightColor,
-                                      initialOpacity: heighlightOpacity);
-                                },
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      height: 22,
-                                      width: 22,
-                                      decoration: BoxDecoration(
-                                        color: heighlightColor,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(.9),
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    const Text(
-                                      'Color',
-                                      style: TextStyle(
-                                          fontSize: 8, color: Colors.white),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(
-                                width: 16,
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  ColorPickerBottomSheet.showThicknessSheet(
-                                      context: context,
-                                      lineColor: heighlightColor,
-                                      onThicknessSelected: (double thickness) {
-                                        setState(() {
-                                          heighlightThickness = thickness;
-                                          _isEraser = false;
-                                        });
-                                      });
-                                },
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.line_weight,
-                                      size: 22,
-                                      color: heighlightColor,
-                                    ),
-                                    const SizedBox(height: 5),
-                                    const Text(
-                                      'Line Thickness',
-                                      style: TextStyle(
-                                          fontSize: 8, color: Colors.white),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(
-                                width: 16,
-                              ),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _isEraser = !_isEraser;
-                                      });
-                                    },
-                                    child: Icon(
-                                      Icons.cleaning_services_sharp,
-                                      size: 22,
-                                      color: _isEraser
-                                          ? editingColor
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    'Eraser',
-                                    style: TextStyle(
-                                        fontSize: 8,
-                                        color: _isEraser
-                                            ? editingColor
-                                            : Colors.white),
-                                  ),
-                                ],
-                              )
-                            ])
-                      : const SizedBox.shrink(key: ValueKey('empty')))
-            ],
-          ),
-        ),
+      bottomNavigationBar: HighlightControlsBar(
+        onDrawTap: () {
+      
+         
+          setState(() {
+            isEditing =true;
+            _isDrawingLine = !_isDrawingLine;
+           
+          });
+        
+        },
+    
+        isEditing: isEditing,
+        isEraser: _isEraser,
+        heighlightColor: heighlightColor,
+        heighlightOpacity: heighlightOpacity,
+        heighlightThickness: heighlightThickness,
+        editingColor: editingColor,
+        bgColor: bgColor,
+        onHighlightTap: () {
+             saveLines();
+             return;
+          _addCurrentSelectionToMarkers(Colors.yellow);
+          _focusNode.unfocus();
+        },
+        onColorTap: () {
+          ColorPickerBottomSheet.show(
+            context: context,
+            onColorSelected: (color, opacity) {
+              setState(() {
+                heighlightColor = color;
+                heighlightOpacity = opacity;
+                _isEraser = false;
+              });
+            },
+            initialColor: heighlightColor,
+            initialOpacity: heighlightOpacity,
+          );
+        },
+        onThicknessTap: () {
+          ColorPickerBottomSheet.showThicknessSheet(
+            context: context,
+            lineColor: heighlightColor,
+            onThicknessSelected: (double thickness) {
+              setState(() {
+                heighlightThickness = thickness;
+                _isEraser = false;
+              });
+            },
+          );
+        },
+        onEraserTap: () {
+          setState(() {
+            _isEraser = !_isEraser;
+          });
+        },
+         highLightEnabled: canHightlight,
+    
       ),
       body: SafeArea(
         child: ValueListenableBuilder(
@@ -272,17 +172,18 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       docRef,
                       controller: controller,
                       params: PdfViewerParams(
-                        layoutPages: _layoutPages[_layoutTypeIndex],
+                        
+                        perPageSelectableRegionInjector: (context, child, page, pageRect) {
+                          return SelectionArea(selectionControls:CustomTextSelectionControls(),focusNode: _focusNode, child: child,);
+                        },
+                      
                         // scrollByMouseWheel: isHorizontalLayout,
-                        pageAnchor: isHorizontalLayout
-                            ? PdfPageAnchor.left
-                            : PdfPageAnchor.top,
-                        pageAnchorEnd: isHorizontalLayout
-                            ? PdfPageAnchor.right
-                            : PdfPageAnchor.bottom,
+                        pageAnchor: PdfPageAnchor.top,
+                        pageAnchorEnd: PdfPageAnchor.bottom,
                         enableTextSelection: true,
                         useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
+                      
                         pageOverlaysBuilder: (context, pageRect, page) {
                           return [
                             // Draw existing lines on this page
@@ -348,11 +249,36 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         },
 
                         viewerOverlayBuilder: (context, size, handleLinkTap) {
-                          print(
-                              "Line drawing $_isCurrentlyDrawing  $_isDrawingLine");
+                         
                           return [
+
+                            PdfViewerScrollThumb(
+                              controller: controller,
+                              orientation: ScrollbarOrientation.right,
+                              thumbSize: const Size(40, 25),
+                              thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                          
+                                decoration: BoxDecoration(
+                                  color: bgColor.withOpacity(.7),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                margin: EdgeInsets.only(
+                            
+                                  right: 5,
+                                  top: 5,
+                                  
+                                ),
+                                child:Center(
+                                        child: Text(
+                                          pageNumber.toString(),
+                                          
+                                          style: const TextStyle(color: Colors.white,fontSize: 8),
+                                        ),
+                                      ),
+                              ),
+                            ),
                             Visibility(
-                              visible: _isDrawingLine,
+                              visible: _isDrawingLine && isEditing || _isEraser,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.translucent,
                                 onLongPressStart: (details) {
@@ -485,8 +411,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                           .topLeft;
                                   _pageNumber = pageIndex + 1;
 
-                                  // Call the link handling function if it exists
-                                  if (handleLinkTap != null) {}
+                                  
 
                                   setState(() {});
                                 },
@@ -522,8 +447,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         pagePaintCallbacks: [
                           if (textSearcher.value != null)
                             textSearcher.value!.pageTextMatchPaintCallback,
-                          // _paintMarkers,
+                          _paintMarkers,
                           _paintLines,
+                          _paintStoredMarkers
                         ],
 
                         onDocumentChanged: (document) async {
@@ -532,7 +458,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             textSearcher.value = null;
                             outline.value = null;
                             textSelections = null;
-                            _lines.clear();
+                            // _lines.clear();
                           }
                         },
 
@@ -544,6 +470,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
                         onTextSelectionChange: (selections) {
                           textSelections = selections;
+                        
+                            activateHighlight(selections.isNotEmpty);
+                          
+                          // _addCurrentSelectionToMarkers(Colors.green);
                         },
                       ),
                     ),
@@ -554,6 +484,125 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       ),
     );
   }
+
+  void activateHighlight(bool status){
+if(status!=canHightlight){
+  setState(() {
+    canHightlight = status;
+  });
+}
+  }
+
+ void _paintMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
+    final markers = _markers[page.pageNumber];
+    if (markers == null) {
+      return;
+    }
+    for (final marker in markers) {
+      final paint = Paint()
+        ..color = marker.color.withAlpha(100)
+        ..style = PaintingStyle.fill;
+
+      for (final range in marker.ranges.ranges) {
+        final f = PdfTextRangeWithFragments.fromTextRange(
+          marker.ranges.pageText,
+          range.start,
+          range.end,
+        );
+        if (f != null) {
+          final rect =f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
+          canvas.drawRect(
+            rect,
+            paint,
+          );
+          _saveMarkers.putIfAbsent(page.pageNumber, () => []).add(SavedMarker(marker.color, [rect]));
+        }
+      }
+    }
+  }
+
+   void saveMarkers()async{
+     
+
+     _markers.forEach((pageNumber, markers) {
+     
+      for (final marker in markers) {
+      final paint = Paint()
+        ..color = marker.color.withAlpha(100)
+        ..style = PaintingStyle.fill;
+
+      for (final range in marker.ranges.ranges) {
+
+       
+        final f = PdfTextRangeWithFragments.fromTextRange(
+          marker.ranges.pageText,
+          range.start,
+          range.end,
+        );
+        if (f != null) {
+          // 
+          final  page = controller.pages[pageNumber];
+          // final rect =f.bounds.toRectInPageRect(page:page , pageRect: controller.calcRectForRectInsidePage(pageNumber: pageNumber, rect: rect));
+         
+          
+        }
+      }
+    }
+    });
+    if (controller.isReady && _saveMarkers.isNotEmpty) {
+    log("Markers to be saved: ${_saveMarkers.toJson()}");
+    
+    }
+  }
+
+  void saveLines(){
+   
+   final lines =  _lines.map((page, lines) {
+      return MapEntry(
+        page,
+        lines.map((e) => e.toJson()).toList(),
+      );
+    });
+
+    log("Lines  $lines");
+  }
+
+
+  void _paintStoredMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
+    final markers = _storedMarkers[page.pageNumber];
+    if (markers == null) {
+      return;
+    }
+    for (final marker in markers) {
+      final paint = Paint()
+        ..color = Colors.yellow.withAlpha(100)
+        ..style = PaintingStyle.fill;
+
+      for (final rect in marker.rects) {
+       
+      
+          canvas.drawRect(
+            rect,
+            paint,
+          );
+        
+      }
+    }
+  }
+
+ 
+
+  void _addCurrentSelectionToMarkers(Color color) {
+    if (controller.isReady && textSelections != null) {
+      for (final selectedText in textSelections!) {
+        _markers.putIfAbsent(selectedText.pageNumber, () => []).add(Marker(color, selectedText));
+      }
+      canHightlight=false;
+      
+      setState(() {});
+    }
+  }
+
 
   bool _isPointNearLine(Offset point, Line line, {double tolerance = 10.0}) {
     final lineVector = line.end - line.start;
@@ -607,202 +656,17 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  int _layoutTypeIndex = 0;
 
-  /// Change the layout logic; see [_layoutPages] for the logics
-  void _changeLayoutType() {
-    setState(() {
-      _layoutTypeIndex = (_layoutTypeIndex + 1) % _layoutPages.length;
-    });
-  }
+  
 
-  bool get isHorizontalLayout => _layoutTypeIndex == 1;
 
-  /// Page reading order; true to L-to-R that is commonly used by books like manga or such
-  var isRightToLeftReadingOrder = false;
-
-  /// Use the first page as cover page
-  var needCoverPage = true;
-
-  late final List<PdfPageLayoutFunction?> _layoutPages = [
-    // The default layout
-    null,
-    // Horizontal layout
-    (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) +
-          params.margin * 2;
-      final pageLayouts = <Rect>[];
-      double x = params.margin;
-      for (var page in pages) {
-        pageLayouts.add(
-          Rect.fromLTWH(
-            x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
-          ),
-        );
-        x += page.width + params.margin;
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size(x, height),
-      );
-    },
-    // Facing pages layout
-    (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
-
-      final pageLayouts = <Rect>[];
-      final offset = needCoverPage ? 1 : 0;
-      double y = params.margin;
-      for (int i = 0; i < pages.length; i++) {
-        final page = pages[i];
-        final pos = i + offset;
-        final isLeft =
-            isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
-
-        final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length
-            ? max(page.height, pages[otherSide].height)
-            : page.height;
-
-        pageLayouts.add(
-          Rect.fromLTWH(
-            isLeft
-                ? width + params.margin - page.width
-                : params.margin * 2 + width,
-            y + (h - page.height) / 2,
-            page.width,
-            page.height,
-          ),
-        );
-        if (pos & 1 == 1 || i + 1 == pages.length) {
-          y += h + params.margin;
-        }
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size(
-          (params.margin + width) * 2 + params.margin,
-          y,
-        ),
-      );
-    },
-  ];
 
   Future<void> navigateToUrl(Uri url) async {}
 
-  Future<void> openUri() async {
-    final result = await showDialog<String?>(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController();
-        controller.text =
-            'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf';
-        return AlertDialog(
-          title: const Text('Open URL'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (kIsWeb)
-                const Text(
-                  'Note: The URL must be CORS-enabled.',
-                  style: TextStyle(color: Colors.red),
-                ),
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(hintText: 'URL'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
-              child: const Text('Open'),
-            ),
-          ],
-        );
-      },
-    );
-    if (result == null) return;
-    final uri = Uri.parse(result);
-    documentRef.value = PdfDocumentRefUri(
-      uri,
-      passwordProvider: () {},
-    );
-  }
 
-  static String? _fileName(String? path) {
-    if (path == null) return null;
-    final parts = path.split(RegExp(r'[\\/]'));
-    return parts.isEmpty ? path : parts.last;
-  }
 }
 
-// Line class to store line information
-class Line {
-  final Offset start;
-  final Offset end;
-  final Color color;
-  final double width;
 
-  Line(
-      {required this.start,
-      required this.end,
-      required this.color,
-      required this.width});
 
-  bool isEmpty() {
-    return start == Offset.zero && end == Offset.zero;
-  }
 
-  factory Line.empty() {
-    return Line(
-      start: Offset.zero,
-      end: Offset.zero,
-      color: Colors.transparent,
-      width: 0.0,
-    );
-  }
-}
 
-// Custom painter for drawing lines
-class LinePainter extends CustomPainter {
-  final Offset startPoint;
-  final Offset endPoint;
-  final Color color;
-  final double opacity;
-  final double strokeWidth;
-
-  LinePainter({
-    required this.startPoint,
-    required this.opacity,
-    required this.endPoint,
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(opacity)
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(startPoint, endPoint, paint);
-  }
-
-  @override
-  bool shouldRepaint(LinePainter oldDelegate) {
-    return oldDelegate.startPoint != startPoint ||
-        oldDelegate.endPoint != endPoint ||
-        oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth;
-  }
-}
