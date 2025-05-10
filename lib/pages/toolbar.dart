@@ -6,7 +6,7 @@ class ToolBar extends StatefulWidget {
   final Function(double) onOpacityChanged;
 
   const ToolBar({
-    super.key, 
+    super.key,
     required this.onColorChanged,
     required this.onHeightChanged,
     required this.onOpacityChanged,
@@ -90,7 +90,7 @@ class _ToolBarState extends State<ToolBar> {
               ),
             ],
           ),
-          
+
           // Color palette
           if (_isColorPaletteOpen)
             Padding(
@@ -119,7 +119,8 @@ class _ToolBarState extends State<ToolBar> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: _selectedColor == color
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
+                          ? const Icon(Icons.check,
+                              size: 16, color: Colors.white)
                           : null,
                     ),
                   );
@@ -186,9 +187,6 @@ class _ToolBarState extends State<ToolBar> {
   }
 }
 
-
-
-
 class HighlightControlsBar extends StatefulWidget {
   final bool isEditing;
   final bool isEraser;
@@ -203,11 +201,11 @@ class HighlightControlsBar extends StatefulWidget {
   final VoidCallback onColorTap;
   final VoidCallback onThicknessTap;
   final VoidCallback onEraserTap;
+  final VoidCallback onMoreTap;
 
   const HighlightControlsBar({
     super.key,
     required this.isEditing,
-
     required this.isEraser,
     required this.heighlightColor,
     required this.heighlightOpacity,
@@ -217,8 +215,10 @@ class HighlightControlsBar extends StatefulWidget {
     required this.onHighlightTap,
     required this.onColorTap,
     required this.onThicknessTap,
-    required this.onEraserTap, required this.onDrawTap,
-     required this.highLightEnabled,
+    required this.onEraserTap,
+    required this.onDrawTap,
+    required this.highLightEnabled,
+    required this.onMoreTap,
   });
 
   @override
@@ -226,9 +226,7 @@ class HighlightControlsBar extends StatefulWidget {
 }
 
 class _HighlightControlsBarState extends State<HighlightControlsBar> {
-
-
-  bool isDrawMode=false;
+  bool isDrawMode = false;
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -243,11 +241,12 @@ class _HighlightControlsBarState extends State<HighlightControlsBar> {
             Opacity(
               opacity: widget.highLightEnabled ? 1 : 0.5,
               child: GestureDetector(
-                   onTap:(){
-widget.onHighlightTap();
-isDrawMode=false;
+                onTap: () {
+                  widget.onHighlightTap();
+                  isDrawMode = false;
 
-              } ,
+                  setState(() {});
+                },
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -261,21 +260,85 @@ isDrawMode=false;
                       'Highlight',
                       style: TextStyle(
                         fontSize: 8,
-                        color:  Colors.white,
+                        color: Colors.white,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            SizedBox(width: 16,),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SizeTransition(
+                  sizeFactor: animation,
+                  axis: Axis.horizontal,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: !isDrawMode
+                  ? Row(
+                      key: const ValueKey('highlightCon'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16),
+                          child: GestureDetector(
+                            onTap: () {
+                              widget.onMoreTap();
+                            },
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.notes,
+                                  size: 22,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  'More',
+                                  style: TextStyle(
+                                      fontSize: 8, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(
+                          height: 24,
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          width: 1.3,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Center(
+                      child: Container(
+                        height: 24,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        width: 1.3,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+            ),
             GestureDetector(
-              onTap:(){
-widget.onDrawTap();
-setState(() {
-  isDrawMode=!isDrawMode;
-});
-              } ,
+              onTap: () {
+                widget.onDrawTap();
+                setState(() {
+                  isDrawMode = !isDrawMode;
+                });
+              },
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -295,6 +358,7 @@ setState(() {
                 ],
               ),
             ),
+            const SizedBox(width: 16),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               transitionBuilder: (Widget child, Animation<double> animation) {
@@ -312,15 +376,6 @@ setState(() {
                       key: const ValueKey('highlightControls'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          height: 24,
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          width: 1.3,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(.3),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
                         GestureDetector(
                           onTap: widget.onColorTap,
                           child: Column(
@@ -341,8 +396,8 @@ setState(() {
                               const SizedBox(height: 5),
                               const Text(
                                 'Color',
-                                style: TextStyle(
-                                    fontSize: 8, color: Colors.white),
+                                style:
+                                    TextStyle(fontSize: 8, color: Colors.white),
                               ),
                             ],
                           ),
@@ -361,8 +416,8 @@ setState(() {
                               const SizedBox(height: 5),
                               const Text(
                                 'Line Thickness',
-                                style: TextStyle(
-                                    fontSize: 8, color: Colors.white),
+                                style:
+                                    TextStyle(fontSize: 8, color: Colors.white),
                               ),
                             ],
                           ),
@@ -376,7 +431,9 @@ setState(() {
                               child: Icon(
                                 Icons.cleaning_services_sharp,
                                 size: 22,
-                                color: widget.isEraser ? widget.editingColor : Colors.white,
+                                color: widget.isEraser
+                                    ? widget.editingColor
+                                    : Colors.white,
                               ),
                             ),
                             const SizedBox(height: 5),
@@ -384,7 +441,9 @@ setState(() {
                               'Eraser',
                               style: TextStyle(
                                 fontSize: 8,
-                                color: widget.isEraser ? widget.editingColor : Colors.white,
+                                color: widget.isEraser
+                                    ? widget.editingColor
+                                    : Colors.white,
                               ),
                             ),
                           ],

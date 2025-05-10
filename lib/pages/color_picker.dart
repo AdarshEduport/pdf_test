@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdfrx_poc/marker.dart';
 import 'package:pdfrx_poc/pages/mainPage.dart';
 
 class ColorPickerBottomSheet extends StatefulWidget {
@@ -46,6 +47,27 @@ class ColorPickerBottomSheet extends StatefulWidget {
         lineColor: lineColor,
         initialThickness: initialThickness,
         onThicknessSelected: onThicknessSelected,
+      ),
+    );
+  }
+
+
+    // New static method for opening highlights sheet
+  static Future<void> showhighlightSheet({
+    required BuildContext context,
+    required Map<int,List<Marker>> marks,
+
+    required Function(Map<int,List<Marker>> marks) onUpdateHighlight,
+    required Function(int page,Marker mark) onHighlightTap
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MarkerSheet(
+        onHighlightTap: onHighlightTap,
+        marks: marks,
+        onUpdateHighlight: onUpdateHighlight,
       ),
     );
   }
@@ -193,6 +215,112 @@ class _ColorPickerBottomSheetState extends State<ColorPickerBottomSheet> {
 }
 
 
+
+class MarkerSheet extends StatefulWidget {
+  final Map<int, List<Marker>> marks;
+  final Function(Map<int,List<Marker>> marks) onUpdateHighlight;
+  final Function(int page,Marker mark) onHighlightTap;
+  const MarkerSheet({super.key, required this.marks, required this.onUpdateHighlight,required this.onHighlightTap});
+
+  @override
+  State<MarkerSheet> createState() => _MarkerSheetState();
+}
+
+class _MarkerSheetState extends State<MarkerSheet> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with title and done button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Highlights',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  widget.onUpdateHighlight(widget.marks);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+
+          SizedBox(
+            height: 200,
+            width: double.maxFinite,
+            child:
+            PageView.builder(
+              itemCount: widget.marks.length,
+              itemBuilder: (context, index) {
+                final key = widget.marks.keys.elementAt(index);
+                final markers = widget.marks[key]??[];
+
+               return  Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                  Text('Page $key',style: TextStyle(color: Colors.white),),
+                    const SizedBox(height: 8),
+                             
+                                // List of markers
+                   ListView.builder(
+                                 shrinkWrap: true,
+                                 itemCount: markers.length,
+                                 itemBuilder: (context, index) {
+
+                                  final title = 'Highlight ${index + 1}';
+                         
+                    return ListTile(
+                      titleAlignment: ListTileTitleAlignment.center,
+                      title: Text(title,style: TextStyle(color: Colors.white,fontSize: 14),),
+                      trailing: IconButton(onPressed: (){
+                        widget.marks[key]?.removeAt(index);
+                        setState(() {
+                          
+                        });
+                      }, icon: Icon(Icons.delete,color: Colors.white,)),
+                     
+                      onTap: () {
+                       widget.onHighlightTap(key, markers[index]);
+                      },
+                    );
+                                 },
+                               ),
+                 ],
+               );
+               
+              },
+             )
+            
+          ),
+
+          // Add your content here
+        ],
+      ),
+    );
+  }
+}
 
 class _LineThicknessSheet extends StatefulWidget {
   final double initialThickness;

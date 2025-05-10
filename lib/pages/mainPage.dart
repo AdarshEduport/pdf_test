@@ -1,10 +1,8 @@
 
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_poc/extensions.dart';
 import 'package:pdfrx_poc/line.dart';
 import 'package:pdfrx_poc/marker.dart';
 import 'package:pdfrx_poc/pages/color_picker.dart';
@@ -24,10 +22,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final documentRef = ValueNotifier<PdfDocumentRef?>(null);
   final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
-  final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
-  final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
 
-  
   bool _isDrawingLine = false;
   bool _isCurrentlyDrawing = false;
   Offset? _lineStart;
@@ -40,32 +35,23 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _isEraser = false;
   Color bgColor = const Color(0xff1A1F38);
   Color editingColor = Colors.lightBlueAccent;
-  final test ={"1":[{"color":4294961979,"rects":[{"left":162.4559326171875,"top":224.15679931640625,"right":193.25234985351562,"bottom":239.20709228515625}]}]};
-  final testLine = 
-  {2: [[247.49084191694294, 117.86064761262105, 318.1760331439749, 116.25416599382493, 4294961979, 5.0], [250.7038051545353, 117.86064761262105, 317.21214417269715, 115.290277022547, 4294961979, 5.0], [252.31028677333148, 117.86064761262105, 313.3565882875863, 115.290277022547, 4294961979, 5.0], [249.7709653595836, 114.95566114460632, 311.1119538726655, 113.21959543197192, 4294961979, 5.0], [247.84200345665653, 114.95566114460632, 307.8327186376895, 117.46331161841158, 4294961979, 5.0]]};
-
   List<PdfTextRanges>? textSelections;
   final _markers = <int, List<Marker>>{};
-  final _saveMarkers = <int, List<SavedMarker>>{};// markers to be saved
-  final _storedMarkers = <int, List<SavedMarker>>{};//already staored mrkers
   // Line drawing state variables
   final _lines = <int, List<Line>>{};
   int? _pageNumber;
   Offset? _offsetInPage;
   bool canHightlight = false;
  FocusNode _focusNode = FocusNode();
-  void _update() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
 
+ final testMarker = {"2":[[316.1312255859375,713.495361328125,336.60980224609375,704.9723510742188,4294961979],[42.902976989746094,691.4692993164062,522.9110107421875,499.9493103027344,4294961979]],"6":[[37.646759033203125,725.080810546875,529.2198486328125,692.5714111328125,4294961979],[36.97943878173828,655.5074462890625,529.3053588867188,588.5763549804688,4294961979]]};
+final testLine = 
+  {2: [[247.49084191694294, 117.86064761262105, 318.1760331439749, 116.25416599382493, 4294961979, 5.0], [250.7038051545353, 117.86064761262105, 317.21214417269715, 115.290277022547, 4294961979, 5.0], [252.31028677333148, 117.86064761262105, 313.3565882875863, 115.290277022547, 4294961979, 5.0], [249.7709653595836, 114.95566114460632, 311.1119538726655, 113.21959543197192, 4294961979, 5.0], [247.84200345665653, 114.95566114460632, 307.8327186376895, 117.46331161841158, 4294961979, 5.0]]};
   @override
   void initState() {
     super.initState();
-    _storedMarkers.addAll(SavedMarkersJsonExtension.fromJson(jsonEncode(test)));
     _lines.addAll(SavedMarkersJsonExtension.fromJsonLine(testLine));
-    
+    _markers.addAll(SavedMarkersJsonExtension.fromJson(testMarker));
     documentRef.value = PdfDocumentRefUri(
       Uri.parse(
           'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
@@ -77,10 +63,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    textSearcher.value?.dispose();
-    textSearcher.dispose();
     showLeftPane.dispose();
-    outline.dispose();
     documentRef.dispose();
     super.dispose();
   }
@@ -95,9 +78,22 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       bottomNavigationBar: HighlightControlsBar(
+        onMoreTap: () {
+          ColorPickerBottomSheet.showhighlightSheet(context: context,
+          marks: _markers,
+          onHighlightTap: (page, mark) {
+            controller.goToRectInsidePage(pageNumber: page, rect: mark.rect);
+          },
+          onUpdateHighlight: (marks) {
+            setState(() {
+              _markers.clear();
+              _markers.addAll(marks);
+            });
+          },);
+        },
         onDrawTap: () {
       
-         
+         saveMarkers();
           setState(() {
             isEditing =true;
             _isDrawingLine = !_isDrawingLine;
@@ -114,8 +110,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         editingColor: editingColor,
         bgColor: bgColor,
         onHighlightTap: () {
-             saveLines();
-             return;
+            
           _addCurrentSelectionToMarkers(Colors.yellow);
           _focusNode.unfocus();
         },
@@ -174,7 +169,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       params: PdfViewerParams(
                         
                         perPageSelectableRegionInjector: (context, child, page, pageRect) {
-                          return SelectionArea(selectionControls:CustomTextSelectionControls(),focusNode: _focusNode, child: child,);
+                          return SelectionArea(
+                          
+                            selectionControls:CustomTextSelectionControls(),
+                          focusNode: _focusNode, child: child);
                         },
                       
                         // scrollByMouseWheel: isHorizontalLayout,
@@ -445,35 +443,32 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         ),
 
                         pagePaintCallbacks: [
-                          if (textSearcher.value != null)
-                            textSearcher.value!.pageTextMatchPaintCallback,
-                          _paintMarkers,
+                
+                          _paintMarkers2,
                           _paintLines,
-                          _paintStoredMarkers
+                      
                         ],
 
                         onDocumentChanged: (document) async {
                           if (document == null) {
-                            textSearcher.value?.dispose();
-                            textSearcher.value = null;
-                            outline.value = null;
+                          
+                    
                             textSelections = null;
                             // _lines.clear();
                           }
                         },
 
                         onViewerReady: (document, controller) async {
-                          outline.value = await document.loadOutline();
-                          textSearcher.value = PdfTextSearcher(controller)
-                            ..addListener(_update);
+  
+                        
                         },
 
                         onTextSelectionChange: (selections) {
-                          textSelections = selections;
+                            textSelections = selections;
                         
                             activateHighlight(selections.isNotEmpty);
                           
-                          // _addCurrentSelectionToMarkers(Colors.green);
+                        
                         },
                       ),
                     ),
@@ -494,6 +489,38 @@ if(status!=canHightlight){
   }
 
  void _paintMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
+    // final markers = _markers[page.pageNumber];
+    // if (markers == null) {
+    //   return;
+    // }
+    // for (final marker in markers) {
+    //   final paint = Paint()
+    //     ..color = marker.color.withAlpha(100)
+    //     ..style = PaintingStyle.fill;
+
+    //   for (final range in marker.ranges.ranges) {
+      
+        
+    //     final f = PdfTextRangeWithFragments.fromTextRange(
+    //       marker.ranges.pageText,
+    //       range.start,
+    //       range.end,
+    //     );
+    //     if (f != null) {
+         
+    //       final rect =f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
+    //       canvas.drawRect(
+    //         rect,
+    //         paint,
+    //       );
+    //       _saveMarkers.putIfAbsent(page.pageNumber, () => []).add(SavedMarker(marker.color, [rect]));
+    //     }
+    //   }
+    // }
+  }
+
+
+  void _paintMarkers2(Canvas canvas, Rect pageRect, PdfPage page) {
     final markers = _markers[page.pageNumber];
     if (markers == null) {
       return;
@@ -503,56 +530,23 @@ if(status!=canHightlight){
         ..color = marker.color.withAlpha(100)
         ..style = PaintingStyle.fill;
 
-      for (final range in marker.ranges.ranges) {
-        final f = PdfTextRangeWithFragments.fromTextRange(
-          marker.ranges.pageText,
-          range.start,
-          range.end,
-        );
-        if (f != null) {
-          final rect =f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
+     
+        final bounds = marker.rect;
+        final rect = bounds.toRectInPageRect(page: page, pageRect: pageRect);
+         
           canvas.drawRect(
             rect,
             paint,
           );
-          _saveMarkers.putIfAbsent(page.pageNumber, () => []).add(SavedMarker(marker.color, [rect]));
-        }
-      }
+         
+        
+      
     }
   }
 
    void saveMarkers()async{
-     
-
-     _markers.forEach((pageNumber, markers) {
-     
-      for (final marker in markers) {
-      final paint = Paint()
-        ..color = marker.color.withAlpha(100)
-        ..style = PaintingStyle.fill;
-
-      for (final range in marker.ranges.ranges) {
-
-       
-        final f = PdfTextRangeWithFragments.fromTextRange(
-          marker.ranges.pageText,
-          range.start,
-          range.end,
-        );
-        if (f != null) {
-          // 
-          final  page = controller.pages[pageNumber];
-          // final rect =f.bounds.toRectInPageRect(page:page , pageRect: controller.calcRectForRectInsidePage(pageNumber: pageNumber, rect: rect));
-         
-          
-        }
-      }
-    }
-    });
-    if (controller.isReady && _saveMarkers.isNotEmpty) {
-    log("Markers to be saved: ${_saveMarkers.toJson()}");
-    
-    }
+    final json=  _markers.toJson();
+    log( "Markers $json");
   }
 
   void saveLines(){
@@ -568,34 +562,14 @@ if(status!=canHightlight){
   }
 
 
-  void _paintStoredMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
-    final markers = _storedMarkers[page.pageNumber];
-    if (markers == null) {
-      return;
-    }
-    for (final marker in markers) {
-      final paint = Paint()
-        ..color = Colors.yellow.withAlpha(100)
-        ..style = PaintingStyle.fill;
 
-      for (final rect in marker.rects) {
-       
-      
-          canvas.drawRect(
-            rect,
-            paint,
-          );
-        
-      }
-    }
-  }
 
  
 
   void _addCurrentSelectionToMarkers(Color color) {
     if (controller.isReady && textSelections != null) {
       for (final selectedText in textSelections!) {
-        _markers.putIfAbsent(selectedText.pageNumber, () => []).add(Marker(color, selectedText));
+        _markers.putIfAbsent(selectedText.pageNumber, () => []).add(Marker(color, selectedText.bounds));
       }
       canHightlight=false;
       
